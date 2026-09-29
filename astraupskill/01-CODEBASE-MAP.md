@@ -1,0 +1,5 @@
+# Codebase map
+
+`startWorkflowRun` in [workflow-run-service.ts](../src/services/workflow-run-service.ts) is the workflow creation boundary. It first searches `findWorkflowRunByIdempotencyKey` with a key composed from `user.id` and the request key. If a row exists, it returns that row immediately, so a same-user replay does not revalidate a changed display name or reseed execution. If no row exists, it resolves the active workflow version, parses its definition, then calls `db.$transaction` to create a PENDING run with workflow version id, startedBy id, display name, scoped key, input, context, status, and initial step key. After `tx-done`, it calls `seedRunExecution`, then reloads by id and user; missing reload is an internal 500.
+
+The repository owns tenant/user scoping and persistence. The engine owns executable step creation. The [runtime test](../tests/workflow-run-idempotency.test.mjs) supplies adapters that record lookup, version, parse, transaction, create, seed, and reload. Trace those calls in order. The user-scoped key is an identity boundary; it is not a content hash and does not make different payloads create new rows for the same user.

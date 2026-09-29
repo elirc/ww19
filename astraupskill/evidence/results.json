@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "executedTests": 5,
+  "checks": [
+    {
+      "project": "_Organized Desktop/05 Numbered Experiments/ww19",
+      "id": "34942f670f85",
+      "command": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/workflow-run-idempotency.test.mjs"
+      ],
+      "cwd": "C:\\Users\\Owner\\Desktop\\AstraOrganized2\\astra-remaining-improvements\\stage\\34942f670f85",
+      "environmentOverrides": {},
+      "startedAt": "2026-09-22T03:21:46.428566+00:00",
+      "status": "complete",
+      "log": "crud-b05-astra-runtime.log",
+      "pid": 34952,
+      "exitCode": 0,
+      "passed": true,
+      "finishedAt": "2026-09-22T03:21:54.337185+00:00",
+      "elapsedSeconds": 7.91
+    }
+  ],
+  "limits": [
+    "Five cases execute actual start-run service and ApiError, with repository, transaction, schema and engine adapters plus unused Next/auth export stubs. No native Prisma, HTTP, real schema validation, worker or concurrency run.",
+    "The fixture models per-user stored keys, not database uniqueness. Create callback completes before seeding; replay after seed failure returns the existing row without reseeding. Recovery is separate and not added.",
+    "Same user and key return the existing run even if requested payload or definition differs. No payload-binding guarantee or production behavior change is claimed."
+  ]
+}
