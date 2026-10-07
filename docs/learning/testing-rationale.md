@@ -1,9 +1,9 @@
 # Testing Rationale
 
 ## `src/lib/api/route-helpers.test.ts` — `rejects an authenticated viewer from an approvals-protected endpoint`
-This test matters because `requireRequestUser()` in [src/lib/api/route-helpers.ts](/c:/Users/Owner/Desktop/ww19/src/lib/api/route-helpers.ts) is the shared auth gate used by protected route handlers. If the permission check regressed here, a whole class of endpoints could quietly become callable by the wrong role. The production bug this guards against is not “one approval page looks wrong”; it is “the server accepts a privileged mutation from an unprivileged user.”
+This test matters because `requireRequestUser()` in [src/lib/api/route-helpers.ts](../../src/lib/api/route-helpers.ts) is the shared auth gate used by protected route handlers. If the permission check regressed here, a whole class of endpoints could quietly become callable by the wrong role. The production bug this guards against is not “one approval page looks wrong”; it is “the server accepts a privileged mutation from an unprivileged user.”
 
-A more thorough production test suite would also exercise real route handlers like [src/app/api/approvals/[approvalId]/decision/route.ts](/c:/Users/Owner/Desktop/ww19/src/app/api/approvals/[approvalId]/decision/route.ts) end-to-end with session cookies and assert the full JSON error shape.
+A more thorough production test suite would also exercise real route handlers like [src/app/api/approvals/[approvalId]/decision/route.ts](../../src/app/api/approvals/[approvalId]/decision/route.ts) end-to-end with session cookies and assert the full JSON error shape.
 
 ## `src/lib/workflows/definition-schema.test.ts` — `rejects a workflow that points at an undefined next step`
 This test matters because a broken workflow graph is much more expensive to discover at runtime than at save time. Without this validation, the system can accept a definition that looks fine until a live run reaches the missing branch hours later. The production bug this guards against is “workflow save succeeds, but execution crashes deep into a real customer run.”
@@ -16,6 +16,20 @@ This test matters because terminal-state corruption is one of the easiest ways t
 A more thorough production test suite would cover both run and step transitions, including allowed transitions around retries (`RUNNING -> FAILED -> QUEUED`) and approval waits (`RUNNING -> WAITING_APPROVAL -> RUNNING`).
 
 ## `src/repositories/workflow-run-repository.test.ts` — `scopes viewer reads to runs they started while leaving admin reads unscoped`
-This test matters because ownership scoping is a security boundary, not just a UI preference. `buildRunVisibilityWhere()` in [src/repositories/workflow-run-repository.ts](/c:/Users/Owner/Desktop/ww19/src/repositories/workflow-run-repository.ts) is the place where a low-privilege user is prevented from reading someone else’s run. The production bug this guards against is a direct cross-user data leak in the runs list or detail endpoint.
+This test matters because ownership scoping is a security boundary, not just a UI preference. `buildRunVisibilityWhere()` in [src/repositories/workflow-run-repository.ts](../../src/repositories/workflow-run-repository.ts) is the place where a low-privilege user is prevented from reading someone else’s run. The production bug this guards against is a direct cross-user data leak in the runs list or detail endpoint.
 
 A more thorough production test suite would run repository integration tests against a real PostgreSQL database with seeded users/runs, then assert that list and detail queries never return rows outside the caller’s scope.
+
+## `tests/workflow-run-idempotency.test.mjs` — runtime lab for `startWorkflowRun`
+
+This `node:test` file belongs to the `astraupskill/` course and runs with `node --experimental-vm-modules --test`. It loads the real `src/services/workflow-run-service.ts` and the real `ApiError` through `tests/helpers/load-typescript.mjs`. The repositories, the transaction, the definition schema, and the engine are recording doubles. The `$transaction` double records both `tx` and `tx-done`, which makes it visible that seeding happens after creation commits.
+
+It protects five behaviors:
+
+- a same-user replay with a changed payload returns the original run after a single lookup
+- a different user gets a distinct `u2:k` row, built from the exact create payload
+- a missing version (404) and a parse failure both happen before any transaction
+- a seed failure leaves one row, and the replay does not seed again
+- a missing reload returns 500 with exactly one create
+
+It does not protect concurrent uniqueness, the real engine's transaction, or HTTP status mapping. See `astraupskill/06-SOLUTIONS-AND-REVIEW.md` for the findings those gaps hide.

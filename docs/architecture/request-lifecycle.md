@@ -34,3 +34,10 @@ Request: Resolve an approval and continue the workflow
 6. `src/repositories/workflow-run-repository.ts` — `updateWorkflowStepRun()` and `appendExecutionEvent()` persist step state and history.
 7. `src/repositories/task-repository.ts` — `createWorkflowTask()` is called if the next step is executable by a worker.
 8. Returns `200` with the updated run aggregate.
+
+## Details the start-run trace above leaves out
+
+- **The replay branch.** If a run already exists for `${user.id}:${idempotencyKey}`, `startWorkflowRun` returns it at `src/services/workflow-run-service.ts:54-56`, before any version lookup or validation, and the route still answers 201. The replayed object comes from `findWorkflowRunByIdempotencyKey` (`src/repositories/workflow-run-repository.ts:87-101`). It has a different `include` shape than the fresh path's `findWorkflowRunById` (47-85).
+- **Two transactions.** The run is created in one `$transaction` (`workflow-run-service.ts:66-77`). `seedRunExecution` then opens a second one (`src/services/workflow-engine-service.ts:367-381`). If the seed fails, the run stays `PENDING` with no steps, and later replays return it unchanged.
+- **Concurrent duplicates.** Two first requests with the same key race to the `@unique` index (`prisma/schema.prisma:186`). The loser's Prisma error is not an `ApiError`, so `jsonError` returns 500 (`src/lib/api/route-helpers.ts:55-60`).
+- **Validation errors.** `jsonError` has no `ZodError` branch, so a body that fails `startWorkflowRunSchema` also produces a 500, not a 400.
